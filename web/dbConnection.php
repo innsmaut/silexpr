@@ -8,7 +8,6 @@ class dbConnection {
     private $conn;
     private $table;
     private $query;
-    private $expired_on;
     public $errs;
     public $result;
 
@@ -20,8 +19,7 @@ class dbConnection {
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->table = $this->cfg['table'];
     }
-
-    // push array $item into DB
+    
     public function dbWrite(array $item){
         $this->query = "INSERT INTO {$this->table} (claimed_link, redirect_link, password, expired_on)
                         VALUES ('{$item['claimedLink']}', 
