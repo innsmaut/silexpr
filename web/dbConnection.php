@@ -39,16 +39,13 @@ class dbConnection {
         try{
             $this->result = $this->conn->query($this->query)->fetchAll(PDO::FETCH_ASSOC);
             if($this->result){
-                $rescount = 0;
                 foreach ($this->result as $res => $entry){
                     $this->errs = $this->validate($item, $entry);
                     if ($this->errs !== 'validated'){
                         unset($this->result[$res]);
-                    } else {
-                        $rescount++;
                     }
                 }
-                if ($rescount !== 0){
+                if ($this->result !== []){
                     return $this->result;
                 } else {
                     return $this->errs;
