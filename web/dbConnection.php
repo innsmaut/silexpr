@@ -4,6 +4,7 @@
 
 class dbConnection {
     
+    private $cfg;
     private $conn;
     private $table;
     private $query;
@@ -11,52 +12,65 @@ class dbConnection {
     public $errs;
     public $result;
 
-    public function __construct(array $cfg)
+    public function __construct()
     {
-        $this->conn = new PDO($cfg['pdostring'], $cfg['username'], $cfg['password']);
-        $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $this->table = $cfg['table'];
+            $this->cfg = require (__DIR__.'\config.php');
+            $this->cfg = $this->cfg['db'];
+            $this->conn = new PDO($this->cfg['pdostring'], $this->cfg['username'], $this->cfg['password']);
+            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->table = $this->cfg['table'];
     }
-    
+
+    // push array $item into DB
     public function dbWrite(array $item){
-        $this->expired_on = date_timestamp_get(date_add(date_create(),
-                            date_interval_create_from_date_string($item['expired_on'].' minutes')));
         $this->query = "INSERT INTO {$this->table} (claimed_link, redirect_link, password, expired_on)
-                        VALUES ('{$item['claimdedLink']}', 
+                        VALUES ('{$item['claimedLink']}', 
                                 '{$item['redirectLink']}', 
                                 '{$item['password']}', 
-                                '{$this->expired_on}')";
+                                '{$item['expiredOn']}')";
         $this->conn->exec($this->query);
     }
 
     public function dbRead($item){
-        $this->query = "SELECT * FROM {$this->table} WHERE (redirect_link = '{$item['claimedLink']}')";
+        $this->query = "SELECT * FROM {$this->table}";
+        if (isset($item['claimedLink'])){
+            $this->query .= " WHERE (redirect_link = '{$item['claimedLink']}')";
+        }
         try{
-            if($this->result = $this->conn->query($this->query)->fetchAll(PDO::FETCH_ASSOC)){
-                $this->result = $this->result[0];
+            $this->result = $this->conn->query($this->query)->fetchAll(PDO::FETCH_ASSOC);
+            if($this->result){
+                $rescount = 0;
+                foreach ($this->result as $res => $entry){
+                    $this->errs = $this->validate($item, $entry);
+                    if ($this->errs !== 'validated'){
+                        unset($this->result[$res]);
+                    } else {
+                        $rescount++;
+                    }
+                }
+                if ($rescount !== 0){
+                    return $this->result;
+                } else {
+                    return $this->errs;
+                }
             } else {
-                return ['error' => 'There is no such link in database!'];
+                return ['error' => 'There is no appropriate link in database!'];
             }
         }
         catch (PDOException $e){
             return ['error' => $e->getMessage()];
         }
-        $this->errs = $this->validate($item);
-        if ($this->errs === false){
-            return $this->result;
-        } else{
-            return $this->errs;
-        }
     }
 
-    private function validate($item){
-        if ((isset($item['password']))&&($this->result['password'] != $item['password'])) {
+    private function validate($item, $entry){
+        if ((isset($item['password']))&&(isset($entry['password']))&&($entry['password'] != $item['password'])) {
             return ['error' => 'Bad password!'];
         }
-        elseif (date_timestamp_get(date_create()) >= $this->result['expired_on']){
-            return ['error' => 'Usage time expired!'];
+        elseif (($entry['expired_on'] !== '0')&&(date_timestamp_get(date_create()) >= $entry['expired_on'])){
+            return ['error' => 'Usage time expired at '.date_timestamp_set(date_create(), $entry['expired_on'])
+                    ->format("Y-m-d H:i:s").'!'];
         } else {
-            return false;
+            return 'validated';
         }
     }
 }

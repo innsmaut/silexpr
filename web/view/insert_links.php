@@ -7,7 +7,7 @@
 <?php if (isset($redirectLink)){
     $lnk = 'http://'.$_SERVER['SERVER_NAME'].strstr($_SERVER['SCRIPT_NAME'], 'index.php', true).$redirectLink;
     $lnk = '<a href='.$lnk.'>'.$lnk.'</a>';
-    echo "New link to {$_POST['claimed_link']} is available at {$lnk} in next {$_POST['expired_on']} min.";
+    echo "New link to {$item['claimedLink']} is available at {$lnk} in next {$item['expiredOn']} min.";
 } else { ?>
 <form method="post">
     Type your link:<br>

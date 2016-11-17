@@ -4,7 +4,7 @@
     <title>Insert links</title>
 </head>
 <body>
-<h3>You are trying to access link behind placeholder <?= $item['claimedLink'];?></h3>
+<h4>You are trying to access link behind placeholder <?= $item['claimedLink'];?></h4>
     <form method="post">
         Type yor password:<br>
         <input type="text" name="password_acc" value="">

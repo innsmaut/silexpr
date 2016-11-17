@@ -6,70 +6,72 @@ require_once 'dbConnection.php';
 
 $app = new Silex\Application();
 
-$app->get('/srv', function () {
-    $dt = date_timestamp_get(date_add(date_create(), date_interval_create_from_date_string('156 minutes')));
-    echo $dt;
-    return true;
+$app->get('/', function () use ($app) {
+    $sql = new dbConnection();
+    $result = $sql->dbRead([]);
+    return require (__DIR__.'\view\main.php');
 });
 
-$app->get('/', function () {
+$app->get('/create', function () {
     $view = require (__DIR__.'\view\insert_links.php');
     return $view;
 });
 
-$app->post('/', function () {
-    if (isset($_POST['claimed_link']) && isset($_POST['password'])){
-        $redirectLink = md5($_POST['claimed_link']);
-        $cfg = require (__DIR__.'\config.php');
+$app->post('/create', function () {
+    if (isset($_POST['claimed_link'])){
+        $redirectLink = md5($_POST['claimed_link'].date_timestamp_get(date_create()));
+        $expiredOn = ($_POST['expired_on'] === '')?'':date_timestamp_get(date_add(date_create(),
+            date_interval_create_from_date_string($_POST['expired_on'].' minutes')));
         $item = [
-            'claimdedLink' => $_POST['claimed_link'],
+            'claimedLink' => $_POST['claimed_link'].'',
             'redirectLink' => $redirectLink,
             'password' => $_POST['password'],
-            'expired_on' => $_POST['expired_on']
+            'expiredOn' => $expiredOn
         ];
-        $sql = new dbConnection($cfg['db']);
+
+        $sql = new dbConnection();
         $sql->dbWrite($item);
 
         $view = require (__DIR__.'\view\insert_links.php');
         return $view;
     }
-});
+})->after(function (){unset($_POST['claimed_link'], $_POST['expired_on'], $_POST['password']);});
 
 $app->get('/{link}', function ($link) use ($app){
-    $cfg = require (__DIR__.'\config.php');
-    $sql = new dbConnection($cfg['db']);
+    $sql = new dbConnection();
     $item = ['claimedLink' => $link,];
     $result = $sql->dbRead($item);
     if (!isset($_POST['password_acc'])){
         if (!isset($result['error'])){
-            if ($result['password'] != '') {
+            if ($result[0]['password'] != '') {
                 return require (__DIR__.'\view\password.php');
             } else {
-                return $app->redirect($result['claimed_link']);
+                return $app->redirect($result[0]['claimed_link']);
             }
         }
-    } else {
-        return $app->abort(404, $result['error']);
-    }
-    return $result['error'];
+    } 
+    return $app->abort(404, $result['error']);
 });
 
 $app->post('/{link}', function ($link) use ($app){
     if (isset($_POST['password_acc'])){
-        $cfg = require (__DIR__.'\config.php');
-        $sql = new dbConnection($cfg['db']);
+        $sql = new dbConnection();
         $item = [
             'claimedLink' => $link,
             'password' => $_POST['password_acc']
         ];
         unset($_POST['password_acc']);
-        return $app->redirect($sql->dbRead($item)['claimed_link']);
+        $result = $sql->dbRead($item);
+        if (!isset($result['error'])){
+            return $app->redirect($result[0]['claimed_link']);
+        } else {
+            return $app->abort(404, $result['error']);
+        }
     } else {
-        return $app->abort(404, "Wrong link or password!");
+        return $app->abort(404, "Wrong link!");
     }
-    return 'TEST';
 });
 
-//$app['debug'] = true;
+$app['debug'] = true;
 
 $app->run();
